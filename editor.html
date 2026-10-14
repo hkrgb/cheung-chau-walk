@@ -64,9 +64,12 @@
             <label class="adm-field"><span>顏色</span><input type="color" id="rColor" class="ed-color" /></label>
           </div>
           <label class="adm-field"><span>簡介</span><textarea id="rBlurb" class="ed-ta" maxlength="600" rows="3"></textarea></label>
-          <label class="ed-check" id="rPathWrap" hidden><input type="checkbox" id="rUsePath" /> 使用道路路徑</label>
-          <button type="button" class="adm-btn adm-btn-ghost" id="regenPathBtn">重新產生道路路徑</button>
-          <p class="ed-hint">移動／加減站點後，路線線條會跟住更新；亦可按上方按鈕用路網重算。</p>
+          <label class="ed-check" id="rPathWrap" hidden><input type="checkbox" id="rUsePath" /> 顯示路線折線</label>
+          <div class="adm-row">
+            <button type="button" class="adm-btn adm-btn-ghost" id="regenPathBtn">最直接路線（含樓梯／小路）</button>
+            <button type="button" class="adm-btn adm-btn-ghost" id="regenOsrmBtn">沿 OSM 路網（可能繞路）</button>
+          </div>
+          <p class="ed-hint">預設用最直接折線連接站點（可行樓梯同小路）。長洲 OSM 常缺小徑，路網模式或會大繞。</p>
           <div class="adm-row ed-route-actions">
             <button type="button" class="adm-btn adm-btn-ghost" id="routeUpBtn">上移</button>
             <button type="button" class="adm-btn adm-btn-ghost" id="routeDownBtn">下移</button>

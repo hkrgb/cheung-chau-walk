@@ -220,7 +220,7 @@ export function toSite(mapDoc, photos) {
     seal: Array.from(title)[0] || "圖",
     eyebrow: (mapDoc.ownerName ? mapDoc.ownerName + " 製作" : "製作") + " · 不是導航",
     lede: mapDoc.description || "",
-    fineNote: "站點位置由製作老師在地圖上標示，屬約數；路線連線只表示步行次序，不是官方步道軌跡。出行前請以現場及主管部門最新公布為準。",
+    fineNote: "站點位置由製作老師在地圖上標示，屬約數；路線以最直接方式連接站點（可行樓梯／小路），只表示步行次序，不是官方導航軌跡。出行前請以現場及主管部門最新公布為準。",
     published: !!mapDoc.published,
     visibility: mapDoc.visibility,
     home: {

@@ -12,7 +12,7 @@ const els = {};
 ["status", "signInCard", "signInBtn", "authError", "signOutBtn", "blockedCard", "blockedMsg", "editorArea",
   "previewLink", "saveBtn", "dirtyState", "mapTitle", "mapDesc", "mapMarquee", "setCenterBtn", "centerInfo",
   "addRouteBtn", "routeList", "routeForm", "rName", "rTheme", "rArea", "rDuration", "rColor", "rBlurb",
-  "rPathWrap", "rUsePath", "regenPathBtn", "routeUpBtn", "routeDownBtn", "routeDelBtn",
+  "rPathWrap", "rUsePath", "regenPathBtn", "regenOsrmBtn", "routeUpBtn", "routeDownBtn", "routeDelBtn",
   "stopSec", "addStopBtn", "stopList", "stopForm", "sName", "sBody", "sBodyEn", "placeBtn", "stopCoords",
   "photoThumb", "photoBtnLabel", "photoInput", "photoRemoveBtn", "photoProgress", "sCredit",
   "stopUpBtn", "stopDownBtn", "stopDelBtn", "map", "mapMsg"].forEach((id) => { els[id] = $(id); });
@@ -165,25 +165,51 @@ function lineCoords(r) {
   return (r.stops || []).map((s) => [s.lng, s.lat]);
 }
 
-/* 站點移動後：把現有道路 path 對齊到新站點；若無 path 則以站點連線寫入。 */
+/* 最直接路徑：站點依次以短直線連接（可代表樓梯／小路／巷仔），
+   約每 maxStepM 米加一個中點，方便顯示。長洲 OSM／OSRM 常缺樓梯與小徑，
+   用路網路由會大繞，故預設唔再用 OSRM foot。 */
+function directPathFromStops(stops, maxStepM = 28) {
+  if (!stops || stops.length === 0) return [];
+  if (stops.length === 1) return [[round6(stops[0].lng), round6(stops[0].lat)]];
+  const out = [];
+  const toRad = Math.PI / 180;
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i], b = stops[i + 1];
+    const aLng = round6(a.lng), aLat = round6(a.lat);
+    const bLng = round6(b.lng), bLat = round6(b.lat);
+    if (i === 0) out.push([aLng, aLat]);
+    const midLat = (a.lat + b.lat) / 2;
+    const dx = (b.lng - a.lng) * 111000 * Math.cos(midLat * toRad);
+    const dy = (b.lat - a.lat) * 111000;
+    const dist = Math.hypot(dx, dy);
+    const steps = Math.max(1, Math.ceil(dist / Math.max(8, maxStepM)));
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      out.push([
+        round6(a.lng + (b.lng - a.lng) * t),
+        round6(a.lat + (b.lat - a.lat) * t)
+      ]);
+    }
+  }
+  return out;
+}
+
+/* 站點移動後：預設重寫為最直接折線（含樓梯／小路語意）。 */
 function syncPathToStops(r) {
   if (!r) return;
   const stops = r.stops || [];
-  const old = pathFromFirestore(r.path);
-  if (old && old.length > 1 && stops.length >= 2) {
-    r.path = pathToFirestore(alignPathToStops(old, stops));
-    state.usePath.set(r.id, true);
-  } else if (stops.length >= 2 && state.usePath.get(r.id)) {
-    r.path = pathToFirestore(stops.map((s) => [s.lng, s.lat]));
-  } else if (stops.length < 2) {
+  if (stops.length < 2) {
     delete r.path;
     state.usePath.set(r.id, false);
+    return;
   }
+  r.path = pathToFirestore(directPathFromStops(stops));
+  state.usePath.set(r.id, true);
 }
 
-/* 以 OSRM 步行路網逐段重算道路路徑，端點強制經過各站點。失敗則用直線。 */
+/* 可選：OSRM foot 沿 OSM 車路／主行人路（長洲常會避開樓梯／小路而大繞）。 */
 async function fetchFootLeg(a, b) {
-  const url = `https://router.project-osrm.org/route/v1/foot/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`;
+  const url = `https://router.project-osrm.org/route/v1/foot/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson&continue_straight=false`;
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12000);
   try {
@@ -197,7 +223,8 @@ async function fetchFootLeg(a, b) {
   }
 }
 
-async function regenerateRoutePath(r, { quiet } = {}) {
+/* mode: "direct"（預設，最直接／可當樓梯小路）| "osrm"（OSM 路網，可能繞路） */
+async function regenerateRoutePath(r, { quiet, mode } = {}) {
   if (!r) return false;
   const stops = r.stops || [];
   if (stops.length < 2) {
@@ -205,35 +232,44 @@ async function regenerateRoutePath(r, { quiet } = {}) {
     state.usePath.set(r.id, false);
     return true;
   }
-  if (!quiet) setStatus("正在重算道路路徑……");
-  const out = [];
-  let usedOsrm = true;
-  for (let i = 0; i < stops.length - 1; i++) {
-    const a = stops[i], b = stops[i + 1];
-    let leg;
-    try {
-      leg = await fetchFootLeg(a, b);
-    } catch (error) {
-      usedOsrm = false;
-      leg = [[a.lng, a.lat], [b.lng, b.lat]];
+  const useOsrm = mode === "osrm";
+  if (!quiet) setStatus(useOsrm ? "正在沿 OSM 路網重算（可能繞路）……" : "正在以最直接方式重算路線（含樓梯／小路）……");
+
+  let out;
+  if (useOsrm) {
+    out = [];
+    let usedOsrm = true;
+    for (let i = 0; i < stops.length - 1; i++) {
+      const a = stops[i], b = stops[i + 1];
+      let leg;
+      try {
+        leg = await fetchFootLeg(a, b);
+      } catch (error) {
+        usedOsrm = false;
+        leg = [[a.lng, a.lat], [b.lng, b.lat]];
+      }
+      if (i === 0) out.push([round6(a.lng), round6(a.lat)]);
+      for (let j = 1; j < leg.length - 1; j++) out.push([round6(leg[j][0]), round6(leg[j][1])]);
+      out.push([round6(b.lng), round6(b.lat)]);
     }
-    if (i === 0) out.push([round6(a.lng), round6(a.lat)]);
-    for (let j = 1; j < leg.length - 1; j++) out.push([round6(leg[j][0]), round6(leg[j][1])]);
-    out.push([round6(b.lng), round6(b.lat)]);
+    if (!quiet) {
+      setStatus(usedOsrm
+        ? "已沿 OSM 路網重算（或會避開未入庫嘅樓梯／小路）。記得按「儲存」。"
+        : "部分路段未能連上網路，已用直線補上。記得按「儲存」。");
+    }
+  } else {
+    out = directPathFromStops(stops);
+    if (!quiet) setStatus("已用最直接折線連接站點（可行樓梯／小路）。記得按「儲存」。");
   }
+
   r.path = pathToFirestore(out);
   state.usePath.set(r.id, true);
-  if (!quiet) {
-    setStatus(usedOsrm
-      ? "道路路徑已按站點重算（沿路網）。記得按「儲存」。"
-      : "部分路段未能連上網路，已用直線補上。記得按「儲存」。");
-  }
   return true;
 }
 
 async function afterStopsGeometryChanged(r) {
   if (!r) return;
-  // 只在「使用道路路徑」開啟時改寫 path；否則公開頁會以站點連線顯示。
+  // 只在「使用路線折線」開啟時改寫 path；移動站點後重寫為最直接折線。
   if (state.usePath.get(r.id)) syncPathToStops(r);
   setDirty(true);
   renderRouteForm();
@@ -308,7 +344,9 @@ function renderRouteForm() {
   const hasPath = !!pathFromFirestore(r.path);
   els.rPathWrap.hidden = !hasPath;
   els.rUsePath.checked = hasPath && !!state.usePath.get(r.id);
-  if (els.regenPathBtn) els.regenPathBtn.disabled = (r.stops || []).length < 2;
+  const few = (r.stops || []).length < 2;
+  if (els.regenPathBtn) els.regenPathBtn.disabled = few;
+  if (els.regenOsrmBtn) els.regenOsrmBtn.disabled = few;
   els.routeUpBtn.disabled = state.rIdx <= 0;
   els.routeDownBtn.disabled = state.rIdx >= state.routes.length - 1;
 }
@@ -395,26 +433,30 @@ els.rUsePath.addEventListener("change", async () => {
   if (!r) return;
   state.usePath.set(r.id, els.rUsePath.checked);
   if (els.rUsePath.checked && !pathFromFirestore(r.path) && (r.stops || []).length >= 2) {
-    await regenerateRoutePath(r);
+    await regenerateRoutePath(r, { mode: "direct" });
   }
   setDirty(true);
   renderRouteForm();
   renderMap();
 });
 
-els.regenPathBtn.addEventListener("click", async () => {
+async function runRegen(mode) {
   const r = curRoute();
   if (!r || (r.stops || []).length < 2) return;
-  els.regenPathBtn.disabled = true;
+  if (els.regenPathBtn) els.regenPathBtn.disabled = true;
+  if (els.regenOsrmBtn) els.regenOsrmBtn.disabled = true;
   try {
-    await regenerateRoutePath(r);
+    await regenerateRoutePath(r, { mode });
     setDirty(true);
     renderRouteForm();
     renderMap();
   } finally {
-    els.regenPathBtn.disabled = false;
+    if (els.regenPathBtn) els.regenPathBtn.disabled = false;
+    if (els.regenOsrmBtn) els.regenOsrmBtn.disabled = false;
   }
-});
+}
+els.regenPathBtn.addEventListener("click", () => runRegen("direct"));
+if (els.regenOsrmBtn) els.regenOsrmBtn.addEventListener("click", () => runRegen("osrm"));
 
 els.setCenterBtn.addEventListener("click", () => {
   if (!map) { setStatus("地圖尚未載入。"); return; }
