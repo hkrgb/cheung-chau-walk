@@ -42,8 +42,8 @@ export function landsdStyle(kind, proxied) {
    MapLibre image source 座標順序：左上、右上、右下、左下。 */
 export const HAND_MAP = {
   url: "images/hand-map.jpg",
-  // [[west, south], [east, north]] — 長洲外圍約數，可按你的手繪圖裁切微調
-  bounds: [[113.99, 22.175], [114.065, 22.238]]
+  // [[west, south], [east, north]] — matches satellite JPG export used for restyle
+  bounds: [[114.015, 22.195], [114.042, 22.225]]
 };
 
 function handMapCoordinates() {
