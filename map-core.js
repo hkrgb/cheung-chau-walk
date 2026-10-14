@@ -146,10 +146,68 @@ export function enableTerrain(map, exaggeration) {
   }
 }
 
-/* 路線線條：route.path（[[lng,lat],…]）缺少時以站點依次連接 */
+/* 把道路路徑對齊到目前站點：各段保留原有折線形狀，端點強制經過站點座標。
+   解決「只改了站點位置、舊 path 未更新」時路線線條與標記錯位。 */
+export function alignPathToStops(path, stops) {
+  if (!Array.isArray(stops) || stops.length === 0) {
+    return Array.isArray(path) ? path.slice() : [];
+  }
+  if (!Array.isArray(path) || path.length < 2) {
+    return stops.map((s) => [s.lng, s.lat]);
+  }
+  if (stops.length === 1) return [[stops[0].lng, stops[0].lat]];
+
+  const n = path.length;
+  const idx = new Array(stops.length);
+  let from = 0;
+  for (let si = 0; si < stops.length; si++) {
+    const s = stops[si];
+    const lastSlots = stops.length - 1 - si;
+    const until = Math.max(from + 1, n - lastSlots);
+    let best = from;
+    let bestD = Infinity;
+    for (let i = from; i < until; i++) {
+      const d = (path[i][0] - s.lng) ** 2 + (path[i][1] - s.lat) ** 2;
+      if (d < bestD) { bestD = d; best = i; }
+    }
+    idx[si] = best;
+    from = best;
+  }
+  idx[0] = 0;
+  idx[idx.length - 1] = n - 1;
+  for (let i = 1; i < idx.length; i++) {
+    if (idx[i] <= idx[i - 1]) idx[i] = Math.min(n - 1, idx[i - 1] + 1);
+  }
+
+  const out = [];
+  for (let seg = 0; seg < stops.length - 1; seg++) {
+    const i0 = idx[seg];
+    const i1 = idx[seg + 1];
+    const a = path[i0];
+    const b = path[i1];
+    const ta = [stops[seg].lng, stops[seg].lat];
+    const tb = [stops[seg + 1].lng, stops[seg + 1].lat];
+    const subLen = Math.max(1, i1 - i0);
+    for (let i = i0; i <= i1; i++) {
+      if (seg > 0 && i === i0) continue;
+      const t = (i - i0) / subLen;
+      const p = path[i];
+      out.push([
+        p[0] + (1 - t) * (ta[0] - a[0]) + t * (tb[0] - b[0]),
+        p[1] + (1 - t) * (ta[1] - a[1]) + t * (tb[1] - b[1])
+      ]);
+    }
+  }
+  return out.length > 1 ? out : stops.map((s) => [s.lng, s.lat]);
+}
+
+/* 路線線條：有 path 時對齊到站點；否則以站點依次連接 */
 export function routeCoords(route) {
-  if (Array.isArray(route.path) && route.path.length > 1) return route.path;
-  return route.stops.map((s) => [s.lng, s.lat]);
+  const stops = route.stops || [];
+  if (Array.isArray(route.path) && route.path.length > 1) {
+    return stops.length ? alignPathToStops(route.path, stops) : route.path.slice();
+  }
+  return stops.map((s) => [s.lng, s.lat]);
 }
 
 export function setRouteLine(map, coords, color) {

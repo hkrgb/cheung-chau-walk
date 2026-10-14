@@ -2,9 +2,9 @@
 import {
   watchAuth, signInSchool, signOutUser, friendlyDbError, LIMITS,
   getMap, saveMapDoc, loadPhotos, photoIdsOf, putPhoto, newPhotoId, deletePhoto, newId,
-  pathFromFirestore, DEFAULT_MARQUEE
+  pathFromFirestore, pathToFirestore, DEFAULT_MARQUEE
 } from "./firebase-client.js";
-import { detectProxy, createMap, setRouteLine, clearRouteLine, esc, safeColor } from "./map-core.js";
+import { detectProxy, createMap, setRouteLine, clearRouteLine, esc, safeColor, alignPathToStops } from "./map-core.js";
 import { compressImage } from "./photo-utils.js";
 
 const $ = (id) => document.getElementById(id);
@@ -12,7 +12,7 @@ const els = {};
 ["status", "signInCard", "signInBtn", "authError", "signOutBtn", "blockedCard", "blockedMsg", "editorArea",
   "previewLink", "saveBtn", "dirtyState", "mapTitle", "mapDesc", "mapMarquee", "setCenterBtn", "centerInfo",
   "addRouteBtn", "routeList", "routeForm", "rName", "rTheme", "rArea", "rDuration", "rColor", "rBlurb",
-  "rPathWrap", "rUsePath", "routeUpBtn", "routeDownBtn", "routeDelBtn",
+  "rPathWrap", "rUsePath", "regenPathBtn", "routeUpBtn", "routeDownBtn", "routeDelBtn",
   "stopSec", "addStopBtn", "stopList", "stopForm", "sName", "sBody", "sBodyEn", "placeBtn", "stopCoords",
   "photoThumb", "photoBtnLabel", "photoInput", "photoRemoveBtn", "photoProgress", "sCredit",
   "stopUpBtn", "stopDownBtn", "stopDelBtn", "map", "mapMsg"].forEach((id) => { els[id] = $(id); });
@@ -146,9 +146,8 @@ function onMapClick(e) {
   if (!s) return;
   s.lng = round6(e.lngLat.lng);
   s.lat = round6(e.lngLat.lat);
-  setDirty(true);
   renderStopCoords();
-  renderMap();
+  afterStopsGeometryChanged(curRoute());
 }
 
 function disarm() {
@@ -160,8 +159,85 @@ function disarm() {
 
 function lineCoords(r) {
   const path = pathFromFirestore(r.path);
-  if (path && state.usePath.get(r.id)) return path;
-  return r.stops.map((s) => [s.lng, s.lat]);
+  if (path && state.usePath.get(r.id)) {
+    return alignPathToStops(path, r.stops || []);
+  }
+  return (r.stops || []).map((s) => [s.lng, s.lat]);
+}
+
+/* 站點移動後：把現有道路 path 對齊到新站點；若無 path 則以站點連線寫入。 */
+function syncPathToStops(r) {
+  if (!r) return;
+  const stops = r.stops || [];
+  const old = pathFromFirestore(r.path);
+  if (old && old.length > 1 && stops.length >= 2) {
+    r.path = pathToFirestore(alignPathToStops(old, stops));
+    state.usePath.set(r.id, true);
+  } else if (stops.length >= 2 && state.usePath.get(r.id)) {
+    r.path = pathToFirestore(stops.map((s) => [s.lng, s.lat]));
+  } else if (stops.length < 2) {
+    delete r.path;
+    state.usePath.set(r.id, false);
+  }
+}
+
+/* 以 OSRM 步行路網逐段重算道路路徑，端點強制經過各站點。失敗則用直線。 */
+async function fetchFootLeg(a, b) {
+  const url = `https://router.project-osrm.org/route/v1/foot/${a.lng},${a.lat};${b.lng},${b.lat}?overview=full&geometries=geojson`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error("http " + res.status);
+    const data = await res.json();
+    if (data.code !== "Ok" || !data.routes || !data.routes[0]) throw new Error(data.code || "no route");
+    return data.routes[0].geometry.coordinates;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function regenerateRoutePath(r, { quiet } = {}) {
+  if (!r) return false;
+  const stops = r.stops || [];
+  if (stops.length < 2) {
+    delete r.path;
+    state.usePath.set(r.id, false);
+    return true;
+  }
+  if (!quiet) setStatus("正在重算道路路徑……");
+  const out = [];
+  let usedOsrm = true;
+  for (let i = 0; i < stops.length - 1; i++) {
+    const a = stops[i], b = stops[i + 1];
+    let leg;
+    try {
+      leg = await fetchFootLeg(a, b);
+    } catch (error) {
+      usedOsrm = false;
+      leg = [[a.lng, a.lat], [b.lng, b.lat]];
+    }
+    if (i === 0) out.push([round6(a.lng), round6(a.lat)]);
+    for (let j = 1; j < leg.length - 1; j++) out.push([round6(leg[j][0]), round6(leg[j][1])]);
+    out.push([round6(b.lng), round6(b.lat)]);
+  }
+  r.path = pathToFirestore(out);
+  state.usePath.set(r.id, true);
+  if (!quiet) {
+    setStatus(usedOsrm
+      ? "道路路徑已按站點重算（沿路網）。記得按「儲存」。"
+      : "部分路段未能連上網路，已用直線補上。記得按「儲存」。");
+  }
+  return true;
+}
+
+async function afterStopsGeometryChanged(r) {
+  if (!r) return;
+  // 只在「使用道路路徑」開啟時改寫 path；否則公開頁會以站點連線顯示。
+  if (state.usePath.get(r.id)) syncPathToStops(r);
+  setDirty(true);
+  renderRouteForm();
+  renderMap();
 }
 
 function renderMap() {
@@ -184,8 +260,8 @@ function renderMap() {
       const ll = mk.getLngLat();
       s.lng = round6(ll.lng);
       s.lat = round6(ll.lat);
-      setDirty(true);
-      if (i !== state.sIdx) selectStop(i); else { renderStopCoords(); renderMap(); }
+      if (i !== state.sIdx) selectStop(i); else renderStopCoords();
+      afterStopsGeometryChanged(r);
     });
     markers.push(mk);
   });
@@ -232,6 +308,7 @@ function renderRouteForm() {
   const hasPath = !!pathFromFirestore(r.path);
   els.rPathWrap.hidden = !hasPath;
   els.rUsePath.checked = hasPath && !!state.usePath.get(r.id);
+  if (els.regenPathBtn) els.regenPathBtn.disabled = (r.stops || []).length < 2;
   els.routeUpBtn.disabled = state.rIdx <= 0;
   els.routeDownBtn.disabled = state.rIdx >= state.routes.length - 1;
 }
@@ -313,12 +390,30 @@ els.mapTitle.addEventListener("input", () => setDirty(true));
 els.mapDesc.addEventListener("input", () => setDirty(true));
 els.mapMarquee.addEventListener("input", () => setDirty(true));
 
-els.rUsePath.addEventListener("change", () => {
+els.rUsePath.addEventListener("change", async () => {
   const r = curRoute();
   if (!r) return;
   state.usePath.set(r.id, els.rUsePath.checked);
+  if (els.rUsePath.checked && !pathFromFirestore(r.path) && (r.stops || []).length >= 2) {
+    await regenerateRoutePath(r);
+  }
   setDirty(true);
+  renderRouteForm();
   renderMap();
+});
+
+els.regenPathBtn.addEventListener("click", async () => {
+  const r = curRoute();
+  if (!r || (r.stops || []).length < 2) return;
+  els.regenPathBtn.disabled = true;
+  try {
+    await regenerateRoutePath(r);
+    setDirty(true);
+    renderRouteForm();
+    renderMap();
+  } finally {
+    els.regenPathBtn.disabled = false;
+  }
 });
 
 els.setCenterBtn.addEventListener("click", () => {
@@ -374,12 +469,11 @@ els.addStopBtn.addEventListener("click", () => {
   const c = map ? map.getCenter() : state.doc.center || { lng: 114.029, lat: 22.208 };
   r.stops.push({ id: newId("s"), name: "新站點 " + (r.stops.length + 1), body: "", lat: round6(c.lat), lng: round6(c.lng) });
   state.sIdx = r.stops.length - 1;
-  setDirty(true);
   disarm();
   renderRouteList();
   renderStopList();
   renderStopForm();
-  renderMap();
+  afterStopsGeometryChanged(r);
   els.sName.focus();
   els.sName.select();
 });
@@ -391,19 +485,28 @@ els.stopDelBtn.addEventListener("click", () => {
   r.stops.splice(state.sIdx, 1);
   state.sIdx = Math.min(state.sIdx, r.stops.length - 1);
   disarm();
-  setDirty(true);
   renderRouteList();
   renderStopList();
   renderStopForm();
-  renderMap();
+  afterStopsGeometryChanged(r);
 });
 els.stopUpBtn.addEventListener("click", () => {
   const r = curRoute();
-  if (r && move(r.stops, state.sIdx, -1)) { state.sIdx--; setDirty(true); renderStopList(); renderStopForm(); renderMap(); }
+  if (r && move(r.stops, state.sIdx, -1)) {
+    state.sIdx--;
+    renderStopList();
+    renderStopForm();
+    afterStopsGeometryChanged(r);
+  }
 });
 els.stopDownBtn.addEventListener("click", () => {
   const r = curRoute();
-  if (r && move(r.stops, state.sIdx, 1)) { state.sIdx++; setDirty(true); renderStopList(); renderStopForm(); renderMap(); }
+  if (r && move(r.stops, state.sIdx, 1)) {
+    state.sIdx++;
+    renderStopList();
+    renderStopForm();
+    afterStopsGeometryChanged(r);
+  }
 });
 els.placeBtn.addEventListener("click", () => {
   if (state.armed) { disarm(); return; }
