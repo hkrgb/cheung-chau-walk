@@ -21,7 +21,6 @@ const sheetBody = document.getElementById("sheet-body");
 const chipsEl = document.getElementById("chips");
 const mstopsEl = document.getElementById("mstops");
 const handleEl = document.getElementById("sheet-handle");
-const mastEl = document.getElementById("mast");
 const closeBtn = document.getElementById("detail-close");
 const gateEl = document.getElementById("gate");
 
@@ -63,14 +62,10 @@ const thumbHtml = (stop) => stop.photo ? `<img class="stop-thumb" src="${esc(sto
 
 /* 刊頭：內置版本與老師地圖共用 */
 function renderMast() {
-  document.getElementById("mast-seal").textContent = site.seal;
-  document.getElementById("mast-eyebrow").textContent = site.eyebrow;
-  document.getElementById("mast-title").textContent = site.title;
-  const lede = document.getElementById("mast-lede");
-  lede.textContent = site.lede;
-  lede.hidden = !site.lede;
+  /* 刊頭已移除；只更新頁標題、地圖標籤與走馬燈 */
   if (!site.builtin) document.title = site.title;
-  document.getElementById("map").setAttribute("aria-label", site.title + " 地圖");
+  else document.title = site.title || "長洲足印";
+  document.getElementById("map").setAttribute("aria-label", (site.title || "長洲足印") + " 地圖");
   const mq = document.getElementById("marquee");
   const mqText = String(site.marquee || "").trim();
   mq.hidden = !mqText;
@@ -131,10 +126,6 @@ function renderList() {
 
 /* 手機：橫向路線膠囊 + 目前路線的站點列表 */
 function renderMobile() {
-  document.getElementById("mast-route").textContent = activeRoute
-    ? [activeRoute.name, activeRoute.stops.length + " 站", shortDuration(activeRoute)].filter(Boolean).join(" · ")
-    : (ROUTES.length ? "選一條路線開始" : "這張地圖暫時未有路線");
-
   chipsEl.innerHTML = "";
   ROUTES.forEach((route) => {
     const color = safeColor(route.color);
@@ -192,12 +183,12 @@ function renderMobile() {
 function sheetHeights() {
   const vh = window.innerHeight;
   const handle = handleEl.offsetHeight || 24;
-  const collapsed = Math.round(handle + mastEl.offsetHeight + 2);
+  // 無刊頭：收起時露出一行路線膠囊，方便一撳展開
+  const collapsed = Math.round(handle + 64);
   const landscape = isLandscapeMobile();
   if (landscape) {
-    // 橫向：展開＝左側全高側欄；收起＝左下矮條（高度仍用 --sheet-h）
     return {
-      collapsed: Math.min(collapsed, Math.round(vh * 0.34)),
+      collapsed: Math.min(collapsed, Math.round(vh * 0.28)),
       half: vh,
       full: vh
     };
@@ -291,7 +282,8 @@ function initSheetDrag() {
     setSheet(target);
   };
   const nearest = (h, hs) => Object.keys(hs).reduce((a, b) => (Math.abs(hs[b] - h) < Math.abs(hs[a] - h) ? b : a));
-  [handleEl, mastEl].forEach((el) => {
+  [handleEl, chipsEl].forEach((el) => {
+    if (!el) return;
     el.addEventListener("pointerdown", begin);
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", end);
