@@ -16,14 +16,15 @@ function set(v) { s = Math.min(MAX, Math.max(MIN, Math.round(v / STEP) * STEP));
 function place() {
   const bar = document.getElementById("topbar"), tools = document.querySelector(".map-tools");
   if (!bar) return;
+  const br = bar.getBoundingClientRect();
   const st = document.getElementById("stack");
-  let left = 8;
   if (st) {
+    st.style.removeProperty("--bar-pad");
     const r = st.getBoundingClientRect();
-    if (r.width && r.top < 80 && r.height > innerHeight * 0.5 && r.right < innerWidth * 0.75) left = r.right + 8;
+    const overlaps = r.width && r.left < br.right && r.top < br.bottom + 4;
+    if (overlaps) st.style.setProperty("--bar-pad", Math.ceil(br.bottom - Math.max(r.top, 0) + 6) + "px");
   }
-  bar.style.left = left + "px";
-  if (tools) { tools.style.setProperty("left", left + "px", "important"); tools.style.setProperty("top", (bar.offsetTop + bar.offsetHeight + 8) + "px", "important"); }
+  if (tools) { tools.style.setProperty("left", br.left + "px", "important"); tools.style.setProperty("top", (br.bottom + 6) + "px", "important"); }
 }
 function mount() {
   const tools = document.querySelector(".map-tools");

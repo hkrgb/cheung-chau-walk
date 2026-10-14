@@ -1007,3 +1007,57 @@ html[data-fs] .marquee { right: calc(72px + env(safe-area-inset-right, 0px)) !im
   html[data-fs] .marquee { top: calc(74px + env(safe-area-inset-top, 0px)) !important; left: 8px !important; right: 8px !important; }
   html[data-fs] .maplibregl-ctrl-top-right { top: calc(116px + env(safe-area-inset-top, 0px)) !important; }
 }
+
+/* ========== v4：真左上角頂欄、路線分頁、站點縮圖＋燈箱 ========== */
+#topbar { top: env(safe-area-inset-top, 0px) !important; left: env(safe-area-inset-left, 0px) !important; padding: 4px; gap: 4px; background: rgba(18,14,11,0.9); border-radius: 0 0 14px 0; }
+#topbar #fs-ctl { border: 0; background: transparent; padding: 0; }
+#stack { padding-top: var(--bar-pad, 0px) !important; }
+html[data-fs] .map-tools.open { z-index: 70; }
+/* 分頁 */
+#chips { display: none !important; }
+#route-tabs { display: flex; gap: 6px; padding: 8px 10px; position: sticky; top: 0; z-index: 3; background: rgba(18,14,11,0.96); }
+.route-tab {
+  flex: 1 1 0; min-height: calc(40px * var(--fs, 1)); padding: 4px 8px; cursor: pointer;
+  font: inherit; font-weight: 700; font-size: calc(18px * var(--fs, 1)); line-height: 1.15;
+  border-radius: 12px; border: 2px solid var(--tab, #f2c230); background: transparent; color: var(--paper, #f4efe6);
+}
+.route-tab.active { background: var(--tab, #f2c230); color: #fff; box-shadow: 0 0 0 3px rgba(242,194,48,0.6); }
+#stack[data-view="detail"] .mstops { display: block !important; }
+/* 舊文字面板不再顯示 */
+#detail { display: none !important; }
+/* 右上：相片縮圖／ⓘ（↻ 下面） */
+#stop-badge {
+  position: fixed; z-index: 58; top: calc(56px + env(safe-area-inset-top, 0px)); right: calc(8px + env(safe-area-inset-right, 0px));
+  padding: 0; cursor: pointer; border: 2px solid #fff; background: rgba(18,14,11,0.9); color: #fff;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+}
+#stop-badge[hidden] { display: none; }
+#stop-badge.has-photo { width: min(180px, 34vw); border-radius: 12px; overflow: hidden; text-align: left; }
+#stop-badge.has-photo img { display: block; width: 100%; height: min(110px, 22vh); object-fit: cover; }
+#stop-badge.has-photo span { display: block; padding: 4px 8px; font-size: calc(13px * var(--fs, 1)); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#stop-badge.info { width: 52px; height: 52px; border-radius: 50%; font-size: 30px; line-height: 1; background: #1f8a70; }
+body:has(#stop-badge.info:not([hidden])) .maplibregl-ctrl-top-right { top: calc(116px + env(safe-area-inset-top, 0px)) !important; }
+body:has(#stop-badge.has-photo:not([hidden])) .maplibregl-ctrl-top-right { top: calc(56px + min(110px, 22vh) + 44px + env(safe-area-inset-top, 0px)) !important; }
+/* 燈箱 */
+#lightbox { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.78); display: grid; place-items: center; padding: 12px; }
+#lightbox[hidden] { display: none; }
+.lb-card { position: relative; width: min(960px, 100%); max-height: 100%; overflow: auto; background: #1a120e; color: #f4efe6; border-radius: 16px; padding: 14px 18px 16px; }
+.lb-close { position: sticky; top: 0; float: right; width: 52px; height: 52px; border-radius: 50%; border: 0; background: #f2c230; color: #1a120e; font-size: 26px; cursor: pointer; z-index: 2; }
+.lb-img img { display: block; max-width: 100%; max-height: 62vh; margin: 0 auto 10px; border-radius: 10px; }
+.lb-kicker { margin: 0; color: #f2c230; font-size: calc(13px * var(--fs, 1)); }
+.lb-name { margin: 4px 0 8px; font-size: calc(24px * var(--fs, 1)); line-height: 1.2; }
+.lb-text { margin: 0 0 12px; font-size: calc(17px * var(--fs, 1)); line-height: 1.45; white-space: pre-line; }
+.lb-nav { display: flex; gap: 10px; }
+.lb-nav button { flex: 1; min-height: calc(36px * var(--fs, 1)); font: inherit; font-weight: 700; font-size: calc(16px * var(--fs, 1)); border-radius: 12px; border: 0; background: #2e6f62; color: #fff; cursor: pointer; }
+.lb-nav button:disabled { opacity: 0.35; }
+@media (orientation: landscape) and (max-height: 560px) {
+  .lb-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; align-content: start; }
+  .lb-card > .lb-close { grid-column: 2; justify-self: end; }
+  .lb-img { grid-column: 1; grid-row: 1 / span 5; }
+  .lb-img:empty { display: none; }
+  .lb-img:empty ~ * { grid-column: 1 / -1; }
+  .lb-img img { max-height: calc(100dvh - 60px); }
+}
+@media (max-width: 820px) and (orientation: portrait) {
+  html[data-fs] .marquee { right: calc(70px + env(safe-area-inset-right, 0px)) !important; }
+}

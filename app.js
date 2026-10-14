@@ -75,8 +75,11 @@ function renderMast() {
 }
 
 function renderList() {
+  setTimeout(updateBadge, 0);
   routesEl.innerHTML = "";
-  ROUTES.forEach((route) => {
+  renderTabs();
+  const shown = tabRoute();
+  ROUTES.filter((r) => !shown || r.id === shown.id).forEach((route) => {
     const color = safeColor(route.color);
     const card = document.createElement("article");
     card.className = "route" + (activeRoute && activeRoute.id === route.id ? " active" : "");
@@ -125,6 +128,40 @@ function renderList() {
   routesEl.appendChild(note);
 }
 
+/* 路線分頁（西灣／北眺亭）：只顯示所選路線 */
+const TAB_KEY = "ccw-route-tab";
+const tabLabel = (r) => { const m = String(r.name || "").match(/[（(]([^）)]+)[）)]\s*$/); return m ? m[1] : (r.name || "路線"); };
+function tabRoute() {
+  if (activeRoute) return activeRoute;
+  let id = null; try { id = localStorage.getItem(TAB_KEY); } catch (e) {}
+  return ROUTES.find((r) => r.id === id) || ROUTES[0] || null;
+}
+function renderTabs() {
+  let tabs = document.getElementById("route-tabs");
+  if (!tabs) {
+    tabs = document.createElement("div");
+    tabs.id = "route-tabs"; tabs.setAttribute("role", "tablist"); tabs.setAttribute("aria-label", "選擇路線");
+    sheetBody.prepend(tabs);
+  }
+  tabs.innerHTML = "";
+  const cur = tabRoute();
+  ROUTES.forEach((route) => {
+    const t = document.createElement("button");
+    t.type = "button"; t.setAttribute("role", "tab");
+    const on = cur && cur.id === route.id;
+    t.className = "route-tab" + (on ? " active" : "");
+    t.setAttribute("aria-selected", on ? "true" : "false");
+    t.style.setProperty("--tab", safeColor(route.color));
+    t.textContent = tabLabel(route);
+    t.addEventListener("click", () => {
+      try { localStorage.setItem(TAB_KEY, route.id); } catch (e) {}
+      if (sheetState === "collapsed") setSheet("half", { recenter: false });
+      if (styleReady) selectRoute(route.id); else renderList();
+    });
+    tabs.appendChild(t);
+  });
+}
+
 /* 手機：橫向路線膠囊 + 目前路線的站點列表 */
 function renderMobile() {
   chipsEl.innerHTML = "";
@@ -147,8 +184,8 @@ function renderMobile() {
   });
 
   mstopsEl.innerHTML = "";
-  if (!activeRoute) return;
-  const route = activeRoute;
+  const route = tabRoute();
+  if (!route) return;
   const color = safeColor(route.color);
   if (route.blurb) {
     const blurb = document.createElement("p");
@@ -167,7 +204,7 @@ function renderMobile() {
     const item = document.createElement("li");
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "stop-btn" + (activeStop === index ? " active" : "") + (stop.photo ? " has-photo" : "");
+    b.className = "stop-btn" + (activeRoute && activeRoute.id === route.id && activeStop === index ? " active" : "") + (stop.photo ? " has-photo" : "");
     b.innerHTML = `<span class="stop-no" style="background:${color}">${index + 1}</span><span class="stop-name">${esc(stop.name)}</span>${thumbHtml(stop)}`;
     b.addEventListener("click", () => selectRoute(route.id, index));
     item.appendChild(b);
@@ -393,6 +430,7 @@ function frameRoute(route) {
 
 function openDetail(route, index) {
   const stop = route.stops[index];
+  setTimeout(() => { sheetEl.dataset.view = "list"; updateBadge(); if (lbEl && !lbEl.hidden) fillLightbox(); }, 0);
   detailEl.hidden = false;
   sheetEl.dataset.view = "detail";
   if (isMobile()) {
@@ -440,6 +478,53 @@ function openDetail(route, index) {
   document.getElementById("detail-meta").textContent = formatCoord(stop) + " · " + source;
 }
 
+/* 站點：右上相片縮圖／ⓘ，撳開大圖燈箱 */
+let badgeEl = null, lbEl = null;
+function updateBadge() {
+  if (!badgeEl) {
+    badgeEl = document.createElement("button");
+    badgeEl.id = "stop-badge"; badgeEl.type = "button";
+    badgeEl.addEventListener("click", openLightbox);
+    document.body.appendChild(badgeEl);
+  }
+  const stop = activeRoute && activeStop >= 0 ? activeRoute.stops[activeStop] : null;
+  badgeEl.hidden = !stop;
+  if (!stop) { if (lbEl) lbEl.hidden = true; return; }
+  badgeEl.className = stop.photo ? "has-photo" : "info";
+  badgeEl.setAttribute("aria-label", stop.name + "：查看相片及資料");
+  badgeEl.innerHTML = stop.photo
+    ? `<img src="${esc(stop.photo.src)}" alt="" /><span>${activeStop + 1}. ${esc(stop.name)}</span>`
+    : "ⓘ";
+}
+function fillLightbox() {
+  const stop = activeRoute && activeRoute.stops[activeStop];
+  if (!stop) { lbEl.hidden = true; return; }
+  lbEl.querySelector(".lb-img").innerHTML = stop.photo ? `<img src="${esc(stop.photo.src)}" alt="${esc(stop.photo.alt || stop.name)}" />` : "";
+  lbEl.querySelector(".lb-kicker").textContent = `${tabLabel(activeRoute)} · 第 ${activeStop + 1} 站`;
+  lbEl.querySelector(".lb-name").textContent = stop.name;
+  lbEl.querySelector(".lb-text").textContent = stop.text || "";
+  lbEl.querySelector(".lb-prev").disabled = activeStop <= 0;
+  lbEl.querySelector(".lb-next").disabled = activeStop >= activeRoute.stops.length - 1;
+}
+function openLightbox() {
+  if (!lbEl) {
+    lbEl = document.createElement("div");
+    lbEl.id = "lightbox"; lbEl.hidden = true;
+    lbEl.setAttribute("role", "dialog"); lbEl.setAttribute("aria-modal", "true");
+    lbEl.innerHTML = `<div class="lb-card"><button type="button" class="lb-close" aria-label="關閉">✕</button>
+      <div class="lb-img"></div><p class="lb-kicker"></p><h2 class="lb-name"></h2><p class="lb-text"></p>
+      <div class="lb-nav"><button type="button" class="lb-prev">‹ 上一站</button><button type="button" class="lb-next">下一站 ›</button></div></div>`;
+    lbEl.addEventListener("click", (e) => { if (e.target === lbEl) lbEl.hidden = true; });
+    lbEl.querySelector(".lb-close").addEventListener("click", () => { lbEl.hidden = true; });
+    lbEl.querySelector(".lb-prev").addEventListener("click", () => { if (activeStop > 0) focusStop(activeStop - 1); });
+    lbEl.querySelector(".lb-next").addEventListener("click", () => { if (activeRoute && activeStop < activeRoute.stops.length - 1) focusStop(activeStop + 1); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && lbEl && !lbEl.hidden) lbEl.hidden = true; });
+    document.body.appendChild(lbEl);
+  }
+  lbEl.hidden = false;
+  fillLightbox();
+}
+
 function focusStop(index) {
   if (!activeRoute) return;
   activeStop = index;
@@ -467,6 +552,7 @@ function selectRoute(id, stopIndex) {
   if (!route || !styleReady) return;
   const changed = !activeRoute || activeRoute.id !== route.id;
   activeRoute = route;
+  try { localStorage.setItem(TAB_KEY, route.id); } catch (e) {}
   if (typeof stopIndex === "number") {
     activeStop = stopIndex;
     openDetail(route, stopIndex);
@@ -679,7 +765,7 @@ function applySite(s) {
   renderList();
   applyMode();
   if (map && styleReady) {
-    const r = ROUTES.find((x) => x.id === prevId) || ROUTES[0];
+    const r = ROUTES.find((x) => x.id === prevId) || tabRoute();
     if (r) selectRoute(r.id); else { clearMarkers(); clearRouteLine(map); }
   }
 }
