@@ -26,8 +26,8 @@ const closeBtn = document.getElementById("detail-close");
 const gateEl = document.getElementById("gate");
 
 /* 與 styles.css 的手機斷點一致 */
-const MOBILE_MQ = window.matchMedia("(max-width: 820px), (max-height: 520px) and (orientation: landscape) and (max-width: 1024px)");
-const LANDSCAPE_MQ = window.matchMedia("(max-height: 520px) and (orientation: landscape) and (max-width: 1024px)");
+const MOBILE_MQ = window.matchMedia("(max-width: 820px), (max-height: 560px) and (orientation: landscape) and (max-width: 1024px)");
+const LANDSCAPE_MQ = window.matchMedia("(max-height: 560px) and (orientation: landscape) and (max-width: 1024px)");
 const isMobile = () => MOBILE_MQ.matches;
 const isLandscapeMobile = () => LANDSCAPE_MQ.matches;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -194,10 +194,18 @@ function sheetHeights() {
   const handle = handleEl.offsetHeight || 24;
   const collapsed = Math.round(handle + mastEl.offsetHeight + 2);
   const landscape = isLandscapeMobile();
+  if (landscape) {
+    // 橫向：展開＝左側全高側欄；收起＝左下矮條（高度仍用 --sheet-h）
+    return {
+      collapsed: Math.min(collapsed, Math.round(vh * 0.34)),
+      half: vh,
+      full: vh
+    };
+  }
   return {
     collapsed,
-    half: Math.max(collapsed + 120, Math.round(vh * (landscape ? 0.62 : 0.45))),
-    full: Math.round(vh - (landscape ? 8 : Math.max(56, vh * 0.1)))
+    half: Math.max(collapsed + 120, Math.round(vh * 0.45)),
+    full: Math.round(vh - Math.max(56, vh * 0.1))
   };
 }
 
@@ -229,8 +237,13 @@ function mobilePadding(sheetH) {
   const w = window.innerWidth;
   if (isLandscapeMobile()) {
     const expanded = sheetState !== "collapsed";
-    const sw = sheetEl.getBoundingClientRect().width || Math.min(420, w * 0.52);
-    return { top: 16, bottom: expanded ? 16 : h + 12, left: expanded ? sw + 16 : 16, right: 64 };
+    const sw = sheetEl.getBoundingClientRect().width || Math.min(300, w * 0.42);
+    return {
+      top: 12,
+      bottom: expanded ? 12 : Math.max(12, h + 8),
+      left: expanded ? sw + 12 : 12,
+      right: 56
+    };
   }
   return { top: 64, bottom: h + 16, left: 16, right: 56 };
 }
@@ -274,6 +287,7 @@ function initSheetDrag() {
     else if (vel > 0.5) target = order[Math.max(0, order.indexOf(nearest(h, hs)) - 1)];
     else target = nearest(h, hs);
     if (sheetEl.dataset.view === "detail" && target === "full") target = "half";
+    if (isLandscapeMobile() && target === "full") target = "half";
     setSheet(target);
   };
   const nearest = (h, hs) => Object.keys(hs).reduce((a, b) => (Math.abs(hs[b] - h) < Math.abs(hs[a] - h) ? b : a));

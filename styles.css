@@ -415,7 +415,7 @@ h1 {
 .sheet-handle, .mast-route, .chips, .mstops, .detail-back { display: none; }
 
 /* ---------- 手機版（直向 ≤820px，或橫向矮螢幕）：地圖全屏 + 底部抽屜 ---------- */
-@media (max-width: 820px), (max-height: 520px) and (orientation: landscape) and (max-width: 1024px) {
+@media (max-width: 820px), (max-height: 560px) and (orientation: landscape) and (max-width: 1024px) {
   html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
   #app { height: 100vh; height: 100dvh; }
 
@@ -638,19 +638,7 @@ h1 {
   }
 }
 
-/* 橫向手機：抽屜靠左，地圖留在右邊 */
-@media (max-height: 520px) and (orientation: landscape) and (max-width: 1024px) {
-  #stack {
-    left: env(safe-area-inset-left, 0px);
-    right: auto;
-    width: min(420px, 52vw);
-    border-radius: 18px 18px 0 0;
-  }
-  #mast { padding-bottom: 8px; }
-  #mast .seal { width: 34px; height: 34px; font-size: 17px; }
-  #mast h1 { font-size: 19px; }
-  .map-tools { left: auto; right: calc(64px + env(safe-area-inset-right, 0px)); }
-}
+/* 橫向手機細則見檔案末「橫向手機加強」——須排在一般手機規則之後以免被蓋過 */
 
 /* 老師登入連結與存取閘 */
 #mast { position: relative; }
@@ -789,4 +777,171 @@ h1 {
   .marquee { left: calc(8px + env(safe-area-inset-left, 0px)); right: calc(8px + env(safe-area-inset-right, 0px)); top: calc(50px + env(safe-area-inset-top, 0px)); }
   .maplibregl-ctrl-top-right { top: calc(82px + env(safe-area-inset-top, 0px)) !important; }
   #ferry-panel, #saved-panel { top: calc(82px + env(safe-area-inset-top, 0px)); }
+}
+
+
+/* ========== 橫向手機加強（地圖為主；須置於檔案後段） ========== */
+@media (max-height: 560px) and (orientation: landscape) and (max-width: 1024px) {
+  .vignette {
+    background: linear-gradient(90deg, rgba(12, 9, 7, 0.35), transparent 22%);
+  }
+
+  /* 收起：左下角矮條；展開：左側全高側欄，右邊留給地圖 */
+  #stack {
+    left: env(safe-area-inset-left, 0px);
+    right: auto;
+    width: min(300px, 42vw);
+    border-radius: 14px 14px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  #stack[data-sheet="half"],
+  #stack[data-sheet="full"] {
+    top: env(safe-area-inset-top, 0px);
+    bottom: 0;
+    height: auto !important;
+    max-height: none;
+    border-radius: 0 14px 14px 0;
+    border-left: 0;
+    box-shadow: 8px 0 28px rgba(0, 0, 0, 0.35);
+  }
+  /* 拖曳時改回高度模式，先收再彈到側欄 */
+  #stack.dragging[data-sheet="half"],
+  #stack.dragging[data-sheet="full"] {
+    top: auto;
+    height: var(--sheet-h, 80%) !important;
+    border-radius: 14px 14px 0 0;
+  }
+  #stack[data-sheet="collapsed"] {
+    top: auto;
+    bottom: 0;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .sheet-handle { height: 22px; }
+  .sheet-handle span { width: 36px; height: 4px; }
+
+  #mast {
+    padding: 0 12px 8px;
+    column-gap: 8px;
+  }
+  #mast h1 {
+    font-size: 16px;
+    line-height: 1.15;
+    margin: 0;
+  }
+  .mast-route {
+    font-size: 12px;
+    margin: 1px 0 0;
+  }
+  .admin-link {
+    top: 6px;
+    right: 8px;
+    font-size: 10px;
+    padding: 2px 7px;
+    opacity: 0.55;
+  }
+
+  #sheet-body { padding-bottom: 10px; }
+
+  .chips {
+    gap: 8px;
+    padding: 0 10px 8px;
+  }
+  .chip {
+    min-height: 44px;
+    max-width: 70vw;
+    padding: 6px 10px 6px 10px;
+    border-radius: 12px;
+  }
+  .chip-name { font-size: 14px; }
+  .chip-facts { font-size: 11px; }
+
+  .mstops { padding: 0 10px; }
+  .mstops .route-blurb { font-size: 12.5px; margin-bottom: 6px; }
+  .mstops .stop-btn {
+    min-height: 42px;
+    font-size: 14px;
+    padding: 4px 4px;
+    grid-template-columns: 26px 1fr;
+  }
+  .mstops .stop-btn.has-photo { grid-template-columns: 26px 1fr 52px; }
+  .mstops .stop-no { width: 22px; height: 22px; font-size: 11px; }
+  .mstops .stop-thumb { width: 52px; height: 34px; }
+  .mstops .fine { font-size: 11px; margin-top: 6px; }
+
+  #detail {
+    margin: 0 8px;
+    padding: 8px 10px 10px;
+  }
+  #detail h2 { font-size: 17px; margin: 4px 0 6px; }
+  #detail-close {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 13px;
+  }
+  #detail-text { font-size: 13.5px; line-height: 1.55; }
+  .en { font-size: 12.5px; }
+  #detail-photo { width: 36%; margin: 0 0 6px 8px; }
+  #detail-photo img { max-height: 72px; }
+  #detail-photo.expanded img { max-height: 36vh; }
+  #detail-title { padding: 0 22px; }
+  #detail-text, #detail-en, #detail-meta, #detail-photo { margin-left: 22px; margin-right: 22px; }
+  .detail-nav { width: 22px; height: 48px; }
+
+  /* 工具列：靠右上橫排，避開左側側欄與 MapLibre 掣 */
+  .map-tools {
+    left: auto !important;
+    right: calc(52px + env(safe-area-inset-right, 0px)) !important;
+    top: calc(6px + env(safe-area-inset-top, 0px)) !important;
+    bottom: auto !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap;
+    gap: 5px !important;
+    max-width: calc(58vw - 8px);
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+  }
+  .map-tools::-webkit-scrollbar { display: none; }
+  #reset-view, #locate-me, #ferry-toggle, .svc-btn, #saved-toggle {
+    min-height: 40px !important;
+    padding: 0 10px !important;
+    font-size: 12px !important;
+  }
+
+  .maplibregl-ctrl-top-right {
+    top: env(safe-area-inset-top, 0px) !important;
+    right: env(safe-area-inset-right, 0px) !important;
+  }
+  .maplibregl-ctrl-group button { width: 40px; height: 40px; }
+
+  /* 走馬燈改細、貼頂，避免同工具列搶位 */
+  .marquee {
+    left: calc(min(300px, 42vw) + 10px + env(safe-area-inset-left, 0px));
+    right: calc(8px + env(safe-area-inset-right, 0px));
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    height: 22px;
+    line-height: 22px;
+    font-size: 11px;
+    opacity: 0.92;
+  }
+  #stack[data-sheet="collapsed"] ~ .marquee,
+  body:has(#stack[data-sheet="collapsed"]) .marquee {
+    left: calc(8px + env(safe-area-inset-left, 0px));
+  }
+
+  #ferry-panel, #saved-panel {
+    top: calc(50px + env(safe-area-inset-top, 0px)) !important;
+    left: auto !important;
+    right: calc(8px + env(safe-area-inset-right, 0px)) !important;
+    max-width: min(280px, 46vw);
+    max-height: calc(100dvh - 64px);
+  }
+
+  .status {
+    top: calc(48px + env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(360px, 50vw);
+  }
 }
