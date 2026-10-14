@@ -916,3 +916,40 @@ body {
   .chips { padding: 0 10px 10px !important; }
   .chip { max-width: calc(min(460px, 52vw) - 24px) !important; }
 }
+
+/* ========== 字體大小調校（--fs，所有裝置；最後定義以覆蓋以上） ========== */
+html[data-fs] .chip-name { font-size: calc(20px * var(--fs)) !important; line-height: 1.15 !important; white-space: normal !important; }
+html[data-fs] .chip-facts { font-size: calc(13px * var(--fs)) !important; line-height: 1.2 !important; white-space: normal !important; }
+html[data-fs] .chip { min-height: calc(36px * var(--fs)) !important; max-width: none !important; height: auto !important; }
+html[data-fs] .chips { flex-wrap: wrap !important; overflow: visible !important; }
+html[data-fs] .mstops .route-blurb { font-size: calc(14px * var(--fs)) !important; line-height: 1.3 !important; }
+html[data-fs] .mstops .stop-btn {
+  font-size: calc(20px * var(--fs)) !important; line-height: 1.2 !important;
+  min-height: calc(36px * var(--fs)) !important;
+  grid-template-columns: calc(26px * var(--fs)) 1fr !important;
+}
+html[data-fs] .mstops .stop-btn > :not(.stop-no) { white-space: normal !important; overflow-wrap: anywhere; }
+html[data-fs] .mstops .stop-no { width: calc(24px * var(--fs)) !important; height: calc(24px * var(--fs)) !important; font-size: calc(13px * var(--fs)) !important; }
+html[data-fs] #detail h2 { font-size: calc(22px * var(--fs)) !important; }
+html[data-fs] #detail-kicker { font-size: calc(13px * var(--fs)) !important; }
+html[data-fs] #detail-text { font-size: calc(18px * var(--fs)) !important; line-height: 1.35 !important; }
+html[data-fs] #detail-close { font-size: calc(14px * var(--fs)) !important; min-height: calc(32px * var(--fs)) !important; }
+html[data-fs] #reset-view, html[data-fs] #locate-me, html[data-fs] #ferry-toggle, html[data-fs] .svc-btn, html[data-fs] #saved-toggle {
+  font-size: calc(13px * var(--fs)) !important; min-height: calc(32px * var(--fs)) !important; padding: 0 calc(8px * var(--fs)) !important;
+}
+html[data-fs] #ferry-panel, html[data-fs] #saved-panel, html[data-fs] .svc-pop, html[data-fs] .maplibregl-popup-content { font-size: calc(13px * var(--fs)) !important; }
+html[data-fs] #ferry-panel, html[data-fs] #saved-panel { max-width: min(calc(260px * var(--fs)), 70vw) !important; }
+html[data-fs] .ferry-label { font-size: calc(11px * var(--fs)) !important; }
+html[data-fs] .marquee { font-size: calc(12px * var(--fs)) !important; height: auto !important; line-height: 1.5 !important; }
+/* 控制掣 */
+#fs-ctl { display: flex; align-items: center; gap: 4px; flex: none; background: rgba(18,14,11,0.88); border: 1px solid var(--line); border-radius: 14px; padding: 3px; color: var(--paper); }
+#fs-ctl button { min-width: 56px; min-height: 52px; font: inherit; font-size: 24px; font-weight: 700; border: 0; border-radius: 11px; background: #f2c230; color: #1a120e; cursor: pointer; }
+#fs-val { min-width: 3.4em; text-align: center; font-size: 18px; font-weight: 700; }
+html[data-fs] .map-tools { z-index: 30; }
+/* 橫向手機：側欄隨字放大 */
+@media (max-height: 560px) and (orientation: landscape) {
+  html[data-fs] #stack { width: min(calc(260px * var(--fs)), 62vw) !important; }
+  html[data-fs] .marquee { left: calc(min(calc(260px * var(--fs)), 62vw) + 10px) !important; }
+  html[data-fs] .map-tools { max-width: calc(38vw - 66px) !important; }
+}
+html[data-fs] #sheet-body, html[data-fs] #stack { overflow-y: auto; }
