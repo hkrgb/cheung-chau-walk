@@ -12,7 +12,7 @@ export const HOME = {
 
 export const ROUTES = [];
 
-export const FINE_NOTE = "站點座標為約數。路線以最直接方式連接站點（可行樓梯／小路），不是官方導航軌跡。船期、泳灘與現場通道請以主管部門最新公布為準。";
+export const FINE_NOTE = "站點座標為約數。路線跟行人路／小路／樓梯連接站點，不是官方導航。船期、泳灘與現場通道請以主管部門最新公布為準。";
 
 /* 內置版本的刊頭與設定（與 Firestore 地圖共用同一個顯示程式；routes 留空以免與 Firebase 重複） */
 export const BUILTIN_SITE = {

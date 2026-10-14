@@ -66,10 +66,10 @@
           <label class="adm-field"><span>簡介</span><textarea id="rBlurb" class="ed-ta" maxlength="600" rows="3"></textarea></label>
           <label class="ed-check" id="rPathWrap" hidden><input type="checkbox" id="rUsePath" /> 顯示路線折線</label>
           <div class="adm-row">
-            <button type="button" class="adm-btn adm-btn-ghost" id="regenPathBtn">最直接路線（含樓梯／小路）</button>
-            <button type="button" class="adm-btn adm-btn-ghost" id="regenOsrmBtn">沿 OSM 路網（可能繞路）</button>
+            <button type="button" class="adm-btn adm-btn-ghost" id="regenPathBtn">重新產生行路路徑（小路／樓梯）</button>
+            <button type="button" class="adm-btn adm-btn-ghost" id="regenOsrmBtn">純直線連接</button>
           </div>
-          <p class="ed-hint">預設用最直接折線連接站點（可行樓梯同小路）。長洲 OSM 常缺小徑，路網模式或會大繞。</p>
+          <p class="ed-hint">跟 OSM 行人路／小路／樓梯行；若路網缺資料或大繞（常見於未入庫樓梯），該段先用直線補上。</p>
           <div class="adm-row ed-route-actions">
             <button type="button" class="adm-btn adm-btn-ghost" id="routeUpBtn">上移</button>
             <button type="button" class="adm-btn adm-btn-ghost" id="routeDownBtn">下移</button>
