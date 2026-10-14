@@ -9,7 +9,7 @@ import { initServices, applyServices } from "./poi.js";
 import { initSaved } from "./saved.js";
 import {
   tiles, detectProxy, createMap, enableTerrain as addTerrain, routeCoords, setRouteLine,
-  clearRouteLine, esc, safeColor, switchStyle, currentKind, probeHandMap, ensureHandMapStyle
+  clearRouteLine, esc, safeColor
 } from "./map-core.js";
 
 const routesEl = document.getElementById("routes");
@@ -514,17 +514,10 @@ function startMap() {
     onLoad: (m, entry) => {
       styleReady = true;
       const note = document.getElementById("map-note");
-      if (entry.kind === "handmap") {
-        try { m.setTerrain(null); } catch (e) { /* ignore */ }
-        note.textContent = "手繪底圖 · 路線與站點疊在圖上（座標為約數）";
-      } else {
-        note.textContent = addTerrain(m, isMobile() ? 1.45 : 1.85)
-          ? "已開啟地形與傾斜鏡頭；建築立體見於較大比例"
-          : "地形圖磚未能載入，仍以傾斜鏡頭觀看";
-        if (entry.kind === "sketch") note.textContent = "手繪風格底圖 · OpenFreeMap 矢量（免 API key）";
-      }
+      note.textContent = addTerrain(m, isMobile() ? 1.45 : 1.85)
+        ? "已開啟地形與傾斜鏡頭；建築立體見於較大比例"
+        : "地形圖磚未能載入，仍以傾斜鏡頭觀看";
       if (tiles.proxyMode && entry.proxied) note.textContent += " · 經本機代理載入圖磚";
-      syncStyleSwitch();
       applyServices(m);
       if (ROUTES.length) selectRoute(ROUTES[0].id);
     }
@@ -585,27 +578,6 @@ locateBtn.addEventListener("click", () => {
   }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
 });
 
-/* 底圖切換：標準 / 地圖 / 航照 / 手繪風 / 手繪圖；換樣式後重加地形與路線（標記為 DOM，不受影響） */
-function syncStyleSwitch() {
-  const kind = currentKind(map);
-  document.querySelectorAll("#style-switch button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
-}
-document.querySelectorAll("#style-switch button").forEach((btn) => btn.addEventListener("click", () => {
-  if (!map || !styleReady || btn.hidden || currentKind(map) === btn.dataset.kind) return;
-  styleReady = false;
-  switchStyle(map, btn.dataset.kind, (m, entry) => {
-    styleReady = true;
-    if (entry && entry.kind === "handmap") {
-      try { m.setTerrain(null); } catch (e) { /* ignore */ }
-    } else {
-      addTerrain(m, isMobile() ? 1.45 : 1.85);
-    }
-    if (activeRoute) setRouteLine(m, routeCoords(activeRoute), safeColor(activeRoute.color));
-    applyServices(m);
-    syncStyleSwitch();
-  });
-  syncStyleSwitch();
-}));
 window.addEventListener("resize", () => {
   if (map) map.resize();
   if (isMobile()) setSheet(sheetState, { recenter: false });
@@ -705,11 +677,6 @@ async function main() {
     applyMode();
   }
   await detectProxy();
-  if (await probeHandMap()) {
-    ensureHandMapStyle();
-    const handBtn = document.querySelector("#style-switch button[data-kind='handmap']");
-    if (handBtn) handBtn.hidden = false;
-  }
   startMap();
 }
 
