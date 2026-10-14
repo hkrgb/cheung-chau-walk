@@ -1,7 +1,7 @@
 /* 長洲足印：檢視頁
-   index.html            → 內置長洲路線（routes-data.js）
-   index.html?map=<id>   → 老師在 Firestore 製作的地圖
-   兩者都轉成同一個 site 物件，由下面同一套顯示程式處理。 */
+   index.html            → 預設載入 Firebase DEFAULT_MAP_ID（長洲足印）
+   index.html?map=<id>   → 指定 Firestore 地圖
+   內置 routes-data.js 已清空，路線以 Firebase 為單一來源。 */
 
 import { BUILTIN_SITE } from "./routes-data.js";
 import { initFerry } from "./ferry.js";
@@ -9,7 +9,7 @@ import { initServices, applyServices } from "./poi.js";
 import { initSaved } from "./saved.js";
 import {
   tiles, detectProxy, createMap, enableTerrain as addTerrain, routeCoords, setRouteLine,
-  clearRouteLine, esc, safeColor
+  clearRouteLine, esc, safeColor, switchStyle, currentKind, probeHandMap, ensureHandMapStyle
 } from "./map-core.js";
 
 const routesEl = document.getElementById("routes");
@@ -31,6 +31,8 @@ const LANDSCAPE_MQ = window.matchMedia("(max-height: 520px) and (orientation: la
 const isMobile = () => MOBILE_MQ.matches;
 const isLandscapeMobile = () => LANDSCAPE_MQ.matches;
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const DEFAULT_MAP_ID = "cheung-chau-footprints";
 
 let site = BUILTIN_SITE;
 let HOME = site.home;
@@ -514,10 +516,17 @@ function startMap() {
     onLoad: (m, entry) => {
       styleReady = true;
       const note = document.getElementById("map-note");
-      note.textContent = addTerrain(m, isMobile() ? 1.45 : 1.85)
-        ? "已開啟地形與傾斜鏡頭；建築立體見於較大比例"
-        : "地形圖磚未能載入，仍以傾斜鏡頭觀看";
+      if (entry.kind === "handmap") {
+        try { m.setTerrain(null); } catch (e) { /* ignore */ }
+        note.textContent = "手繪底圖 · 路線與站點疊在圖上（座標為約數）";
+      } else {
+        note.textContent = addTerrain(m, isMobile() ? 1.45 : 1.85)
+          ? "已開啟地形與傾斜鏡頭；建築立體見於較大比例"
+          : "地形圖磚未能載入，仍以傾斜鏡頭觀看";
+        if (entry.kind === "sketch") note.textContent = "手繪風格底圖 · OpenFreeMap 矢量（免 API key）";
+      }
       if (tiles.proxyMode && entry.proxied) note.textContent += " · 經本機代理載入圖磚";
+      syncStyleSwitch();
       applyServices(m);
       if (ROUTES.length) selectRoute(ROUTES[0].id);
     }
@@ -578,6 +587,27 @@ locateBtn.addEventListener("click", () => {
   }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
 });
 
+/* 底圖切換：標準 / 地圖 / 航照 / 手繪風 / 手繪圖；換樣式後重加地形與路線（標記為 DOM，不受影響） */
+function syncStyleSwitch() {
+  const kind = currentKind(map);
+  document.querySelectorAll("#style-switch button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === kind)));
+}
+document.querySelectorAll("#style-switch button").forEach((btn) => btn.addEventListener("click", () => {
+  if (!map || !styleReady || btn.hidden || currentKind(map) === btn.dataset.kind) return;
+  styleReady = false;
+  switchStyle(map, btn.dataset.kind, (m, entry) => {
+    styleReady = true;
+    if (entry && entry.kind === "handmap") {
+      try { m.setTerrain(null); } catch (e) { /* ignore */ }
+    } else {
+      addTerrain(m, isMobile() ? 1.45 : 1.85);
+    }
+    if (activeRoute) setRouteLine(m, routeCoords(activeRoute), safeColor(activeRoute.color));
+    applyServices(m);
+    syncStyleSwitch();
+  });
+  syncStyleSwitch();
+}));
 window.addEventListener("resize", () => {
   if (map) map.resize();
   if (isMobile()) setSheet(sheetState, { recenter: false });
@@ -657,7 +687,7 @@ async function loadRemoteSite(mapId) {
 }
 
 async function main() {
-  const mapId = new URLSearchParams(location.search).get("map");
+  const mapId = new URLSearchParams(location.search).get("map") || DEFAULT_MAP_ID;
   renderMast();
   renderList();
   initSheetDrag();
@@ -677,6 +707,11 @@ async function main() {
     applyMode();
   }
   await detectProxy();
+  if (await probeHandMap()) {
+    ensureHandMapStyle();
+    const handBtn = document.querySelector("#style-switch button[data-kind='handmap']");
+    if (handBtn) handBtn.hidden = false;
+  }
   startMap();
 }
 
