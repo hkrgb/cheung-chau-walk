@@ -7,7 +7,7 @@
   --cinnabar: #e25b3a;
   --gold: #e2c089;
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.38);
-  --serif: "Noto Serif TC", "Songti TC", serif;
+  --serif: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
   --sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
@@ -837,4 +837,42 @@ body {
     transform: translateX(-50%);
     width: min(360px, 50vw);
   }
+}
+
+
+/* ========== 大字＋精簡（手機為主） ========== */
+@media (max-width: 820px), (max-height: 560px) and (orientation: landscape) and (max-width: 1024px) {
+  /* 只留重點：長說明、座標、英文、細字備註不顯示 */
+  .fine, #detail-meta, .en, #detail-photo figcaption { display: none !important; }
+  .mstops .route-blurb {
+    font-size: 15px !important; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  #detail-text {
+    font-size: 17px !important; line-height: 1.5 !important;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  #detail-kicker { font-size: 14px; }
+  #detail h2 { font-size: 22px !important; }
+  #detail-close { font-size: 15px !important; min-height: 44px !important; }
+
+  .chip { min-height: 50px !important; }
+  .chip-name { font-size: 18px !important; }
+  .chip-facts { font-size: 13.5px !important; }
+
+  .mstops .stop-btn { font-size: 18px !important; min-height: 48px !important; font-weight: 500; }
+  .mstops .stop-no { width: 28px !important; height: 28px !important; font-size: 15px !important; }
+  .mstops .stop-btn { grid-template-columns: 34px 1fr !important; }
+
+  #reset-view, #locate-me, #ferry-toggle, .svc-btn, #saved-toggle {
+    font-size: 15px !important; min-height: 42px !important; padding: 0 12px !important;
+  }
+  #ferry-panel, #saved-panel { font-size: 15px !important; }
+  .marquee { font-size: 13.5px !important; height: 26px !important; line-height: 26px !important; }
+}
+@media (max-width: 820px), (max-height: 560px) and (orientation: landscape) and (max-width: 1024px) {
+  #reset-view, #locate-me, #ferry-toggle, .svc-btn, #saved-toggle { white-space: nowrap !important; flex: none; }
+}
+@media (max-height: 560px) and (orientation: landscape) and (max-width: 1024px) {
+  .marquee { top: calc(54px + env(safe-area-inset-top, 0px)) !important; right: calc(56px + env(safe-area-inset-right, 0px)) !important; }
 }
