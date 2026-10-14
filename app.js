@@ -7,6 +7,7 @@ import { BUILTIN_SITE } from "./routes-data.js";
 import { initFerry } from "./ferry.js";
 import { initServices, applyServices } from "./poi.js";
 import { initSaved } from "./saved.js";
+import { fetchPublicMap, readCachedMap, writeCachedMap, toSite as liteToSite } from "./site-lite.js";
 import {
   tiles, detectProxy, createMap, enableTerrain as addTerrain, routeCoords, setRouteLine,
   clearRouteLine, esc, safeColor
@@ -403,7 +404,7 @@ function openDetail(route, index) {
   document.getElementById("detail-num").textContent = String(index + 1);
   document.getElementById("detail-prev").hidden = index <= 0;
   document.getElementById("detail-next").hidden = index >= route.stops.length - 1;
-  document.getElementById("detail-text").textContent = stop.text;
+  document.getElementById("detail-text").textContent = isMobile() ? (stop.short || stop.text) : stop.text;
 
   const en = document.getElementById("detail-en");
   en.hidden = !stop.en;
@@ -522,7 +523,8 @@ function startMap() {
     onLoad: (m, entry) => {
       styleReady = true;
       const note = document.getElementById("map-note");
-      note.textContent = addTerrain(m, isMobile() ? 1.45 : 1.85)
+      // 手機略過 3D 地形：少載大量高程圖磚，開圖明顯快
+      note.textContent = (!isMobile() && addTerrain(m, 1.85))
         ? "已開啟地形與傾斜鏡頭；建築立體見於較大比例"
         : "地形圖磚未能載入，仍以傾斜鏡頭觀看";
       if (tiles.proxyMode && entry.proxied) note.textContent += " · 經本機代理載入圖磚";
@@ -664,6 +666,26 @@ async function loadRemoteSite(mapId) {
   });
 }
 
+function applySite(s) {
+  const prevId = activeRoute && activeRoute.id;
+  site = s;
+  HOME = site.home;
+  ROUTES = site.routes;
+  activeRoute = null;
+  activeStop = -1;
+  detailEl.hidden = true;
+  sheetEl.dataset.view = "list";
+  renderMast();
+  renderList();
+  applyMode();
+  if (map && styleReady) {
+    const r = ROUTES.find((x) => x.id === prevId) || ROUTES[0];
+    if (r) selectRoute(r.id); else { clearMarkers(); clearRouteLine(map); }
+  }
+}
+
+const hasPhotos = (doc) => (doc.routes || []).some((r) => (r.stops || []).some((s) => s.photoId));
+
 async function main() {
   const mapId = new URLSearchParams(location.search).get("map") || DEFAULT_MAP_ID;
   renderMast();
@@ -674,18 +696,35 @@ async function main() {
     showStatus("地圖程式庫未能載入。請確認可以連接網絡後重新開啟。");
     return;
   }
-  if (mapId) {
-    const loaded = await loadRemoteSite(mapId);
-    if (!loaded) return;
-    site = loaded;
-    HOME = site.home;
-    ROUTES = site.routes;
-    renderMast();
-    renderList();
-    applyMode();
+
+  /* 1) 有快取就即時顯示路線；2) 地圖同步開始載入，不等資料庫 */
+  const cached = mapId ? readCachedMap(mapId) : null;
+  if (cached) applySite(liteToSite(cached, {}));
+  detectProxy().then(startMap);
+  if (!mapId) return;
+
+  /* 3) 以 REST 讀公開地圖（毋須載入 Firebase SDK／登入） */
+  if (!cached) showStatus("正在讀取路線……");
+  const fresh = await fetchPublicMap(mapId);
+  if (fresh) {
+    showStatus("");
+    const same = cached && JSON.stringify(cached.routes) === JSON.stringify(fresh.routes) &&
+      cached.marquee === fresh.marquee && cached.title === fresh.title;
+    writeCachedMap(mapId, fresh);
+    if (!same) applySite(liteToSite(fresh, {}));
+    if (hasPhotos(fresh)) {
+      try {
+        const fb = await import("./firebase-client.js");
+        const photos = await fb.loadPhotos(mapId, fb.photoIdsOf(fresh.routes));
+        applySite(liteToSite(fresh, photos));
+      } catch (error) { /* 相片失敗不影響路線 */ }
+    }
+    return;
   }
-  await detectProxy();
-  startMap();
+
+  /* 4) 讀不到（未發佈／需登入）才走原本 SDK 流程 */
+  const loaded = await loadRemoteSite(mapId);
+  if (loaded) applySite(loaded);
 }
 
 main();
