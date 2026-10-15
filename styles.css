@@ -1080,3 +1080,12 @@ body:has(#stop-badge.has-photo:not([hidden])) .maplibregl-ctrl-top-right { top: 
 .lb-arrow.lb-next { right: 4px; }
 .lb-arrow:disabled { visibility: hidden; }
 .lb-nav { display: none !important; }
+
+/* fs9: lightbox 相片縮至目前 80%（只縮圖，唔縮整個 dialog） */
+.lb-img img {
+  max-width: 80% !important;
+  max-height: 40vh !important;
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .lb-img img { max-height: calc((80dvh - 48px) * 0.8) !important; }
+}
