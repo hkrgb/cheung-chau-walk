@@ -59,7 +59,7 @@ function formatCoord(stop) {
 
 const shortDuration = (route) => String(route.duration || "").replace(/（.*）/, "");
 const routeFacts = (route) => [route.area, route.duration, route.stops.length + " 站"].filter(Boolean).join(" · ");
-const thumbHtml = (stop) => stop.photo ? `<img class="stop-thumb" src="${esc(stop.photo.src)}" alt="" loading="lazy" />` : "";
+const thumbHtml = () => ""; /* 左邊列表不再顯示相片縮圖 */
 
 /* 刊頭：內置版本與老師地圖共用 */
 function renderMast() {
@@ -103,7 +103,7 @@ function renderList() {
       const stopButton = document.createElement("button");
       stopButton.type = "button";
       stopButton.className = "stop-btn" + (activeRoute && activeRoute.id === route.id && activeStop === index ? " active" : "");
-      stopButton.className += stop.photo ? " has-photo" : "";
+      
       stopButton.innerHTML = `<span class="stop-no" style="background:${color}">${index + 1}</span><span class="stop-name">${esc(stop.name)}</span>${thumbHtml(stop)}`;
       stopButton.addEventListener("click", () => selectRoute(route.id, index));
       item.appendChild(stopButton);
@@ -204,7 +204,7 @@ function renderMobile() {
     const item = document.createElement("li");
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "stop-btn" + (activeRoute && activeRoute.id === route.id && activeStop === index ? " active" : "") + (stop.photo ? " has-photo" : "");
+    b.className = "stop-btn" + (activeRoute && activeRoute.id === route.id && activeStop === index ? " active" : "");
     b.innerHTML = `<span class="stop-no" style="background:${color}">${index + 1}</span><span class="stop-name">${esc(stop.name)}</span>${thumbHtml(stop)}`;
     b.addEventListener("click", () => selectRoute(route.id, index));
     item.appendChild(b);
@@ -493,7 +493,7 @@ function updateBadge() {
   badgeEl.className = stop.photo ? "has-photo" : "info";
   badgeEl.setAttribute("aria-label", stop.name + "：查看相片及資料");
   badgeEl.innerHTML = stop.photo
-    ? `<img src="${esc(stop.photo.src)}" alt="" /><span>${activeStop + 1}. ${esc(stop.name)}</span>`
+    ? `<img src="${esc(stop.photo.src)}" alt="${esc(stop.name)}" />`
     : "ⓘ";
 }
 function fillLightbox() {
