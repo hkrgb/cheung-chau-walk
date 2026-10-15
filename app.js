@@ -512,12 +512,17 @@ function openLightbox() {
     lbEl.setAttribute("role", "dialog"); lbEl.setAttribute("aria-modal", "true");
     lbEl.innerHTML = `<div class="lb-card"><button type="button" class="lb-close" aria-label="關閉">✕</button>
       <div class="lb-img"></div><p class="lb-kicker"></p><h2 class="lb-name"></h2><p class="lb-text"></p>
-      <div class="lb-nav"><button type="button" class="lb-prev">‹ 上一站</button><button type="button" class="lb-next">下一站 ›</button></div></div>`;
+      <button type="button" class="lb-arrow lb-prev" aria-label="上一站">‹</button><button type="button" class="lb-arrow lb-next" aria-label="下一站">›</button></div>`;
     lbEl.addEventListener("click", (e) => { if (e.target === lbEl) lbEl.hidden = true; });
     lbEl.querySelector(".lb-close").addEventListener("click", () => { lbEl.hidden = true; });
     lbEl.querySelector(".lb-prev").addEventListener("click", () => { if (activeStop > 0) focusStop(activeStop - 1); });
     lbEl.querySelector(".lb-next").addEventListener("click", () => { if (activeRoute && activeStop < activeRoute.stops.length - 1) focusStop(activeStop + 1); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && lbEl && !lbEl.hidden) lbEl.hidden = true; });
+    document.addEventListener("keydown", (e) => {
+      if (!lbEl || lbEl.hidden) return;
+      if (e.key === "Escape") lbEl.hidden = true;
+      else if (e.key === "ArrowLeft" && activeStop > 0) focusStop(activeStop - 1);
+      else if (e.key === "ArrowRight" && activeRoute && activeStop < activeRoute.stops.length - 1) focusStop(activeStop + 1);
+    });
     document.body.appendChild(lbEl);
   }
   lbEl.hidden = false;

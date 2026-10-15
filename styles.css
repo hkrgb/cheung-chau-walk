@@ -1068,3 +1068,15 @@ body:has(#stop-badge.has-photo:not([hidden])) .maplibregl-ctrl-top-right { top: 
 @media (orientation: landscape) and (max-height: 560px) {
   .lb-img img { max-height: calc(80dvh - 48px) !important; }
 }
+
+/* 燈箱：左右箭咀取代底部大掣 */
+.lb-card { position: relative; padding-left: 52px !important; padding-right: 52px !important; }
+.lb-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 3;
+  width: 44px; height: 64px; padding: 0; border: 0; border-radius: 12px; cursor: pointer;
+  background: rgba(242,194,48,0.92); color: #1a120e; font-size: 40px; line-height: 60px; font-weight: 700;
+}
+.lb-arrow.lb-prev { left: 4px; }
+.lb-arrow.lb-next { right: 4px; }
+.lb-arrow:disabled { visibility: hidden; }
+.lb-nav { display: none !important; }
