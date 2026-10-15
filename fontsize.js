@@ -1,8 +1,8 @@
 // 字體大小調校：A− / A+，100%–400%，存 localStorage
-const KEY = "ccw-font-scale";
+const KEY = "ccw-font-scale-v2"; // 新 key：所有人由 150% 開始
 const MIN = 1, MAX = 4, STEP = 0.25;
 const isPhone = matchMedia("(pointer: coarse), (max-width: 820px), (max-height: 560px)").matches;
-const DEF = isPhone ? 1.75 : 1;
+const DEF = 1.5;
 let s = parseFloat(localStorage.getItem(KEY));
 if (!(s >= MIN && s <= MAX)) s = DEF;
 function apply() {
